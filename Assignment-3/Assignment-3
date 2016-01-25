@@ -1,0 +1,109 @@
+Kernel Programming
+
+Aurobindo Mondal
+143050082
+Exercise - 3
+
+---------------------------------------------
+
+Part I : Creation and Termination of processes.
+
+Hook Added in _do_fork() function.
+
+Steps (KERNEL):
+	Declare function pointer as NULL and export it in /usr/src/linux-4.3.3/kernel/fork.c:
+
+	void (*pCreate)() = NULL;
+	EXPORT_SYMBOL(pCreate);
+
+	Add hook in the end of the _do_fork() function.
+
+	_do_fork() calls another function copy_process(), which returns the task_struct of the child pointer
+
+	Send the pointer to the task_struct of child pointer in the hook :
+
+	if(pCreate !=NULL) // this check avoids any crashing of kernel when the module is not inserted
+	{
+		pCreate(p);
+	}
+
+
+Steps (MODULE) :
+	
+	In the init_module, initialise the function pointer with the function written in the module.
+
+	pCreate = createProcess;
+
+	In the createProcess(), just print the necessary information about the process to the syslog.
+
+Fields of struct task_struct * ts :
+
+	ts->pid : Process ID
+	ts->parent->pid : Parent pID
+	ts->state : state of process
+		-1 : unrunnable
+		 0 : runnable
+		>0 : stopped 
+	ts->comm : command name
+
+
+
+
+Did the similar for termination of process :
+	
+	file : /usr/src/linux-4.3.3/kernel/exit.c
+
+	function of interest : do_exit()
+
+-------------------------------------------------------------
+
+
+
+Part II : Logging information related to page fault :
+
+IN THE KERNEL :
+
+Hook added in :
+
+	file : /usr/src/linux-4.3.3/arch/x86/mm/fault.c
+	function of interest : __do_page_fault()
+
+	The label <good_area> is the area of interest as all pages which are not yet mapped & does a page fault are served here.
+
+	Send the task_struct of the process creating the page fault and the address of the memory that creates a page fault.
+
+IN THE MODULE :
+
+	print the address and the pid of the process that creates the page fault.
+
+
+VERIFICATION :
+
+file  : test.c	
+
+#include <stdio.h>
+#include <unistd.h>
+#include <malloc.h>
+
+int main()
+{
+	getchar();
+	printf("I'm waiting for you!!!!\n");
+	char *getarea = (char *)malloc(80000);
+	int i;
+	for(i=0; i<10; i++) {
+		*getarea = 'a';
+		getarea = getarea + 4096;
+		printf("Address = %x\n",getarea);
+	}
+	getchar();
+	return 0;
+}
+
+This file allocates a huger memory which in turn creates page fault. It prints the starting address of each page.
+Match this address with that of the output when the module is inserted.
+
+To get process id of the program test.c :
+
+	ps aux | grep a.out
+
