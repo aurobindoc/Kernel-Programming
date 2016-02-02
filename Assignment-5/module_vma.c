@@ -8,6 +8,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
+#include <uapi/asm/mman.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Aurobindo Mondal");
@@ -32,14 +33,23 @@ void showVMArea(struct task_struct *task) {
 	char *fileName;
 	while(vm != NULL)	{
 		vm_flags_t flags = vm->vm_flags;
-		unsigned long size = (vm->vm_end - vm->vm_start)/1024;
+		unsigned long start = vm->vm_start, end = vm->vm_end;
 		if(vm->vm_file != NULL) fileName = vm->vm_file->f_path.dentry->d_iname;
-		else fileName = " ";	// may be [ anon ] or [ stack ]
+		else fileName = "[ anon ]";	// may be [ anon ] or [ stack ]
+		
+		if (stack_guard_page_start(vm, start)) {
+			start += PAGE_SIZE;
+			if(fileName=="[ anon ]")	fileName = "[ stack ]";
+		}
+		if (stack_guard_page_end(vm, end))
+			end -= PAGE_SIZE;
+		unsigned long size = (end - start)/1024;		
 		char r = flags & VM_READ ? 'r' : '-';
 		char w = flags & VM_WRITE ? 'w' : '-';
 		char x = flags & VM_EXEC ? 'x' : '-';
 		char s = flags & VM_MAYSHARE ? 's' : '-';
-		printk(KERN_INFO "%08lx\t%lu KB\t%c%c%c%c-\t%s\n",vm->vm_start, size,r,w,x,s,fileName);
+		char R = MAP_NORESERVE ? '-' : 'R';
+		printk(KERN_INFO "%08lx\t%lu KB\t%c%c%c%c%c\t%s\n",start, size,r,w,x,s,R,fileName);
 		vm = vm->vm_next;
 	}
 }
