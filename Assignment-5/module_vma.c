@@ -37,19 +37,27 @@ void showVMArea(struct task_struct *task) {
 		if(vm->vm_file != NULL) fileName = vm->vm_file->f_path.dentry->d_iname;
 		else fileName = "[ anon ]";	// may be [ anon ] or [ stack ]
 		
-		if (stack_guard_page_start(vm, start)) {
+		/* Tried "vm_is_stack_for_task(task, vm)" in mm/util.c but its doesnot work, 
+		I think i need a hook to pass the value that is returned by vm_is_stack_for_task*/
+		
+		if (stack_guard_page_start(vm, start)) {	// remove 1 guard page from vma start
 			start += PAGE_SIZE;
-			if(fileName=="[ anon ]")	fileName = "[ stack ]";
+			fileName = "[ stack ]";
 		}
-		if (stack_guard_page_end(vm, end))
+		if (stack_guard_page_end(vm, end))	{		// remove 1 guard page from vma end
 			end -= PAGE_SIZE;
+			fileName = "[ stack ]";
+		}
+		
 		unsigned long size = (end - start)/1024;		
+
 		char r = flags & VM_READ ? 'r' : '-';
 		char w = flags & VM_WRITE ? 'w' : '-';
 		char x = flags & VM_EXEC ? 'x' : '-';
 		char s = flags & VM_MAYSHARE ? 's' : '-';
 		char R = MAP_NORESERVE ? '-' : 'R';
-		printk(KERN_INFO "%08lx\t%lu KB\t%c%c%c%c%c\t%s\n",start, size,r,w,x,s,R,fileName);
+
+		printk(KERN_INFO "%12lx\t%lu KB\t%c%c%c%c%c\t%s\n",start, size,r,w,x,s,R,fileName);
 		vm = vm->vm_next;
 	}
 }
