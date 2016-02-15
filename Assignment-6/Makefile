@@ -1,4 +1,5 @@
 obj-m += linkedList.o
+obj-m += q.o
 obj-m += rbTree.o
 
 all:
