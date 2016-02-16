@@ -15,7 +15,7 @@ MODULE_AUTHOR("Aurobindo Mondal");
 
 int pID = -1;
 module_param(pID, int, 0);
-MODULE_PARM_DESC(pID, "Process ID");
+MODULE_PARM_DESC(pID,"Process ID");
 
 struct node {
 	struct list_head list;
@@ -27,7 +27,7 @@ struct node output;
 
 long vmpages = 0, rss = 0;
 
-int isRSS(struct mm_struct *mm, unsigned long page)	{
+pte_t *isRSS(struct mm_struct *mm, unsigned long page)	{
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -35,24 +35,21 @@ int isRSS(struct mm_struct *mm, unsigned long page)	{
 
 	pgd = pgd_offset(mm, page);
 	if(pgd_none(*pgd) || pgd_bad(*pgd)) {
-		return 0;
+		return NULL;
 	}
 	
 	pud = pud_offset(pgd, page);
 	if(pud_none(*pud) || pud_bad(*pud)) {
-		return 0;
+		return NULL;
 	}
 
 	pmd = pmd_offset(pud, page);
 	if(pmd_none(*pmd) || pmd_bad(*pmd)) {
-		return 0;
+		return NULL;
 	}
 
 	pte = pte_offset_kernel(pmd, page);
-	if(pte && pte_present(*pte)) {
-		return 1;
-	}
-	return 0;
+  	return pte;
 }
 
 int __init initialise(void)	{
@@ -60,6 +57,7 @@ int __init initialise(void)	{
 	struct vm_area_struct *vma = NULL;
 	struct node *temp;
 	unsigned long page;
+	pte_t *pte;
 	int r, v;
 	INIT_LIST_HEAD(&output.list);
 	
@@ -75,13 +73,20 @@ int __init initialise(void)	{
 		r=0;
 		v=0;
 		while(page < vma->vm_end)	{
-			printk(KERN_INFO "Physical address : %lx\n", virt_to_phys(page));
-			
-			if(isRSS(task->mm, page))	{	
-				rss++;
+			pte=isRSS(task->mm, page);
+            if(pte!=NULL)    printk(KERN_INFO "Page Unmapped\n"); 
+            else    {
+	        if(pte_present(*pte)) {
+		        printk(KERN_INFO "Physical Address of Page : %lx || Page present in RAM\n",(unsigned long)pte_pfn(*pte)<<PAGE_SHIFT);			
+                rss++;
 				r++;
 			}
-			vmpages++;
+            else   { 
+                    printk(KERN_INFO "Page not present in RAM\n");		
+                    rss++;
+    		        r++;
+                }
+            }
 			v++;
 			page += PAGE_SIZE;
 		}
@@ -95,8 +100,8 @@ int __init initialise(void)	{
 	list_for_each_entry(temp, &output.list, list) {
 		printk(KERN_INFO "Rss = %d || Vmpages = %d\n", temp->rss, temp->vmpages);
 	}
-	printk(KERN_INFO "Number of Pages = %ld\n", vmpages*PAGE_SIZE/1024);
-	printk(KERN_INFO "Number of RSS Pages = %ld\n", rss*PAGE_SIZE/1024);
+	printk(KERN_INFO "VmSize = %ld || Number of VmPages = %ld\n", vmpages*PAGE_SIZE/1024, vmpages);
+	printk(KERN_INFO "RSS = %ld ||  Number of RSS = %ld\n", rss*PAGE_SIZE/1024, rss);
 	return 0;
 }
 
