@@ -28,13 +28,20 @@ struct kernelVM {
 	struct list_head list;
 	unsigned long start;
 	unsigned long end;
-	long size;			//in KB
+	long size;			//in MB
 	char use[32];
 	long cntPresent;
 	long cntAbsent;
 	long cntUnmapped;
 };
 struct kernelVM vmKernel;
+
+struct output {
+ 	struct list_head list;
+    unsigned long va;
+    unsigned long pa;
+};
+struct output op;
 
 void insertVMA(unsigned long start, unsigned long end, char *use)	{
 	struct vmregion *temp;
@@ -45,12 +52,21 @@ void insertVMA(unsigned long start, unsigned long end, char *use)	{
 	list_add_tail(&(temp->list), &(vma.list));
 }
 
+void insertOutput(unsigned long va, unsigned long pa)	{
+	struct output *temp;
+	temp = (struct output *) kmalloc(sizeof(struct output), GFP_KERNEL);
+	temp->va = va;
+	temp->pa = pa;
+	list_add_tail(&(temp->list), &(op.list));
+}
+
+
 pte_t *getPTE(struct mm_struct *mm, unsigned long page, unsigned int *level)	{
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
-    
+
 	*level = PG_LEVEL_NONE;
 	pgd = pgd_offset(mm, page);
 	if(pgd_none(*pgd))	return NULL;
@@ -63,7 +79,7 @@ pte_t *getPTE(struct mm_struct *mm, unsigned long page, unsigned int *level)	{
 	pmd = pmd_offset(pud, page);
     if (pmd_none(*pmd))
     	return NULL;
-    
+
 	*level = PG_LEVEL_2M;
     if(pmd_large(*pmd) || !pmd_present(*pmd))
     	return (pte_t *)pmd;
@@ -104,17 +120,20 @@ int __init initialise(void)	{
 	INIT_LIST_HEAD(&vmKernel.list);
 	
 	list_for_each_entry(temp, &vma.list, list) {
-		for(virtAddr = temp->start; virtAddr < temp->end; virtAddr += PAGE_SIZE)	{
+		pres = 0;
+        mapp = 0;
+        unmapp = 0;
+        for(virtAddr = temp->start; virtAddr < temp->end; virtAddr += PAGE_SIZE)	{
 			
 			pte = getPTE(task->mm, virtAddr, &level);	// returns the pte and the pgtable level
             if(pte==NULL)	{	//Page not mapped
 				unmapp++;
-				break;
 			}
             else    {			//Pages mapped
 	        	if(pte && pte_present(*pte)) {			//Pages present in RAM
-					pres++;
-					if(!(strcmp(temp->use,"Kernel Text Mapping")))	{	//print virtAddr & physAddr for a particular region
+					
+                    if(strcmp(temp->use,"Kernel Text Mapping")==0)	{	//print virtAddr & physAddr for a particular region
+						pres++;
 						switch(level)	{
 						case PG_LEVEL_1G :
 							pa = pud_pfn(*(pud_t *)pte)<<PAGE_SHIFT;
@@ -127,12 +146,11 @@ int __init initialise(void)	{
 							pOffset = virtAddr & ~PAGE_MASK;
 						}
 						physAddr = ((phys_addr_t)(pa | pOffset));
-						printk(KERN_INFO "VirtualAddress = %lx || Physical Address = %lx\n",virtAddr, physAddr);	
+						insertOutput(virtAddr, physAddr);	
 					}
 				}
             	else	{								//Pages not present in RAM but mapped
 					mapp++;
-					printk(KERN_INFO "Page not present in RAM\n");		
 				}
         	}
 			/******** Storing VMRegion Information *******/
@@ -145,7 +163,7 @@ int __init initialise(void)	{
 			kern->cntPresent = pres;
 			kern->cntAbsent = mapp;
 			kern->cntUnmapped = unmapp;
-			kern->size = (unmapp + mapp + pres)*PAGE_SIZE/1024;		
+			kern->size = (unmapp + mapp + pres)*PAGE_SIZE/(1024*1024);		
 			list_add_tail(&(kern->list), &(vmKernel.list));
 			schedule();
 	}
@@ -156,12 +174,17 @@ void __exit terminate(void)	{
 	struct list_head *pos, *q;
 	struct kernelVM *kern;
 	struct vmregion *vmr;
+    struct output *out;
 	
+    list_for_each_entry(out, &op.list, list) {
+        printk(KERN_INFO "Virtual Address : %lx  &  Physical Address : %lx\n", out->va, out->pa);
+    }
+
 	list_for_each_entry(kern, &vmKernel.list, list) {
 		printk(KERN_INFO "Region Name : %s \n",kern->use);
 		printk(KERN_INFO "\tStarting Virtual Address : %lx\n",kern->start);
 		printk(KERN_INFO "\tEnding Virtual Address : %lx\n",kern->end);
-		printk(KERN_INFO "\tTotal Size : %ld\n",kern->size);
+		printk(KERN_INFO "\tTotal Size : %ld MB\n",kern->size);
 		printk(KERN_INFO "\tNumber of Pages MAPPED & PRESENT in RAM : %ld\n",kern->cntPresent);
 		printk(KERN_INFO "\tNumber of Pages MAPPED & NOT PRESENT in RAM : %ld\n",kern->cntAbsent);		
 		printk(KERN_INFO "\tNumber of Pages UNMAPPED : %ld\n",kern->cntUnmapped);
@@ -178,7 +201,13 @@ void __exit terminate(void)	{
 		list_del(pos);
 		kfree(kern);
 	}
-	printk(KERN_INFO "Exiting Module!!! Good Bye!!!\n");
+    list_for_each_safe(pos, q, &op.list) {
+        out = list_entry(pos, struct output, list);
+        list_del(pos);
+        kfree(out);
+    }
+
+    printk(KERN_INFO "Exiting Module!!! Good Bye!!!\n");
 }
 
 module_init(initialise);
