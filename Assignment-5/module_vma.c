@@ -40,8 +40,7 @@ void showVMArea(struct task_struct *task) {
 		/* Tried "vm_is_stack_for_task(task, vm)" in mm/util.c but its doesnot work, 
 		I don't find it in any library*/
 		
-		if(vm_is_stack_for_task(
-		
+				
 		if (stack_guard_page_start(vm, start)) {	// remove 1 guard page from vma start
 			start += PAGE_SIZE;
 			fileName = "[ stack ]";

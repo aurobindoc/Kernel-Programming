@@ -74,20 +74,17 @@ int __init initialise(void)	{
 		v=0;
 		while(page < vma->vm_end)	{
 			pte=isRSS(task->mm, page);
-            if(pte!=NULL)    printk(KERN_INFO "Page Unmapped\n"); 
+            if(pte==NULL)    printk(KERN_INFO "Page Unmapped\n"); 
             else    {
-	        if(pte_present(*pte)) {
-		        printk(KERN_INFO "Physical Address of Page : %lx || Page present in RAM\n",(unsigned long)pte_pfn(*pte)<<PAGE_SHIFT);			
-                rss++;
-				r++;
-			}
-            else   { 
-                    printk(KERN_INFO "Page not present in RAM\n");		
-                    rss++;
-    		        r++;
-                }
-            }
+	        	if(pte && pte_present(*pte)) {
+		        	printk(KERN_INFO "Physical Address of Page : %lx || Page present in RAM\n",(unsigned long)pte_pfn(*pte)<<PAGE_SHIFT);
+                	rss++;
+					r++;
+				}
+            	else 	printk(KERN_INFO "Page not present in RAM\n");		
+        	}
 			v++;
+			vmpages++;
 			page += PAGE_SIZE;
 		}
 		temp = (struct node *)kmalloc(sizeof(struct node),GFP_KERNEL);

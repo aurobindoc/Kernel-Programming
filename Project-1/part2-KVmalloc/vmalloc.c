@@ -51,11 +51,11 @@ int __init initialise(void)
 	enum pg_level level;
     struct task_struct *task = current;
 
-	var = kmalloc(8192, GFP_KERNEL);            // allocating 2 pages
-	strcpy(var->buffer,"Hey! this is kmalloc()");
+	var = vmalloc(8192);            // allocating 2 pages
+	strcpy(var->buffer,"Hey! this is vmalloc()");
 	printk(KERN_ALERT "%s\n", var->buffer);
 	virtAddr = (unsigned long)var;              // virtual Address of allocated memory
-	paMacro = virt_to_phys(virtAddr);           // macro to get physical address from virtual address
+	paMacro = virt_to_phys(var);           // macro to get physical address from virtual address
 	
 	/***** Get physical address from PageWalk ********/
     pte = getPTE(task->mm, virtAddr, &level);	// returns the pte and the level of page table till which it traversed
@@ -75,7 +75,7 @@ int __init initialise(void)
 			pOffset = virtAddr & ~PAGE_MASK;
 	}
 	paPagewalk = ((phys_addr_t)(phyAddr | pOffset ));
-	printk(KERN_INFO "LEVEL = %d.\n",level);
+
     printk(KERN_INFO "Virtual Address : %lx\n", virtAddr);
 	printk(KERN_INFO "Physical Address (using Macro)  : %lx\n", paMacro);
 	printk(KERN_INFO "Physical Address (using Pagewalk) : %lx\n", paPagewalk);
@@ -88,7 +88,7 @@ int __init initialise(void)
     return 0;
 }
 void __exit terminate(void) {
-    kfree(var);
+    vfree(var);
 }
 
 module_init(initialise);

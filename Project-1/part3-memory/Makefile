@@ -1,6 +1,6 @@
-obj-m += kmalloc.o
-obj-m += vmalloc.o
-obj-m += check.o
+CONFIG_MODULE_SIG=n
+
+obj-m += memory.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules

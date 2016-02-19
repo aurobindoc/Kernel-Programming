@@ -27,7 +27,7 @@ int init_module(void) {
 	struct node *temp;
 	char st[20];
 	int count = 1;
-	INIT_LIST_HEAD(&taskList.list);
+	INIT_LIST_HEAD(&taskList.list);     // Initialises head of taskList
 	
 	/* Building my linked list from process list */
 	printk(KERN_ALERT "\nPrinting output from kernel process list :\n");

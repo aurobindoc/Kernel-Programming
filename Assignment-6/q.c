@@ -32,7 +32,6 @@ int producer(void)	{
 	struct task_struct *task;
 	if(kfifo_alloc(&fifo, sizeof(int)*numberOfProcess(), GFP_KERNEL)) return 0;
 	for_each_process(task)	{
-		printk(KERN_ALERT "%d\n", task->pid);
 		if(!kfifo_put(&fifo, task->pid)) return 1;
 	}
 	return 1;
@@ -48,11 +47,12 @@ void consumer(void)	{
 int init_module(void) {
 	int i;
 	unsigned char res;
-	printk(KERN_ALERT "Hey How're you???\n");
 	struct task_struct *task;
+	printk(KERN_ALERT "Producer is running . . . . . \n");
 	if(!producer())	return -1;
-	consumer();
-	printk(KERN_ALERT "\n-----------------------------\n");
+	printk(KERN_ALERT "Printing Consumer's output : \n");
+    consumer();
+	printk(KERN_ALERT "\nVerifying with Kernel process list :\n");
 	for_each_process(task)	printk(KERN_ALERT "[test] pid = %d\n", task->pid);
 	printk(KERN_ALERT "\n-----------------------------\n Putting different types of variable in queue: \n");
 	INIT_KFIFO(test);
