@@ -97,8 +97,8 @@ int __init initialise(void)	{
 	list_for_each_entry(temp, &output.list, list) {
 		printk(KERN_INFO "Rss = %d || Vmpages = %d\n", temp->rss, temp->vmpages);
 	}
-	printk(KERN_INFO "VmSize = %ld || Number of VmPages = %ld\n", vmpages*PAGE_SIZE/1024, vmpages);
-	printk(KERN_INFO "RSS = %ld ||  Number of RSS = %ld\n", rss*PAGE_SIZE/1024, rss);
+	printk(KERN_INFO "VmSize = %ld KB || Number of VmPages = %ld\n", vmpages*PAGE_SIZE/1024, vmpages);
+	printk(KERN_INFO "RSS = %ld KB ||  Number of RSS = %ld\n", rss*PAGE_SIZE/1024, rss);
 	return 0;
 }
 

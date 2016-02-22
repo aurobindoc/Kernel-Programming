@@ -86,9 +86,8 @@ pte_t *getPTE(struct mm_struct *mm, unsigned long page, unsigned int *level)	{
 	
 	*level = PG_LEVEL_4K;
 	pte = pte_offset_kernel(pmd, page);
-  	if(pte && pte_present(*pte))	return pte;
 
-	return NULL;
+	return pte;
 }
 
 int __init initialise(void)	{
@@ -100,7 +99,8 @@ int __init initialise(void)	{
 	pte_t *pte;
 	struct vmregion *temp;
 	struct kernelVM *kern;
-
+	unsigned long s = (unsigned long)0xffffffff80000000, e =(unsigned long)0xffffffffa0000000;
+	unsigned long s1 = (unsigned long)0xffffff0000000000, e1 =(unsigned long)0xffffff7fffffffff;
 	/******* initialise vma with virtual adresses ********/
 
 	INIT_LIST_HEAD(&vma.list);
@@ -118,7 +118,9 @@ int __init initialise(void)	{
 	
 
 	INIT_LIST_HEAD(&vmKernel.list);
+	INIT_LIST_HEAD(&op.list);
 	
+
 	list_for_each_entry(temp, &vma.list, list) {
 		pres = 0;
         mapp = 0;
@@ -131,9 +133,8 @@ int __init initialise(void)	{
 			}
             else    {			//Pages mapped
 	        	if(pte && pte_present(*pte)) {			//Pages present in RAM
-					
-                    if(strcmp(temp->use,"Kernel Text Mapping")==0)	{	//print virtAddr & physAddr for a particular region
-						pres++;
+					pres++;
+                    if(virtAddr >= s && virtAddr <= e)	{	//print virtAddr & physAddr for a particular region
 						switch(level)	{
 						case PG_LEVEL_1G :
 							pa = pud_pfn(*(pud_t *)pte)<<PAGE_SHIFT;
@@ -147,25 +148,27 @@ int __init initialise(void)	{
 						}
 						physAddr = ((phys_addr_t)(pa | pOffset));
 						insertOutput(virtAddr, physAddr);	
+						//printk(KERN_INFO "%lx || %lx \n", virtAddr, physAddr );
 					}
 				}
             	else	{								//Pages not present in RAM but mapped
 					mapp++;
+					if(!(virtAddr >= s1 && virtAddr <= e1))	break;	// specially for stack area
 				}
         	}
 			/******** Storing VMRegion Information *******/
 			
 		}
-			kern = (struct kernelVM *) kmalloc(sizeof(struct kernelVM), GFP_KERNEL);
-			kern->start = temp->start;
-			kern->end = temp->end;
-			strcpy(kern->use, temp->use);
-			kern->cntPresent = pres;
-			kern->cntAbsent = mapp;
-			kern->cntUnmapped = unmapp;
-			kern->size = (unmapp + mapp + pres)*PAGE_SIZE/(1024*1024);		
-			list_add_tail(&(kern->list), &(vmKernel.list));
-			schedule();
+		//schedule();
+		kern = (struct kernelVM *) kmalloc(sizeof(struct kernelVM), GFP_ATOMIC);
+		kern->start = temp->start;
+		kern->end = temp->end;
+		strcpy(kern->use, temp->use);
+		kern->cntPresent = pres;
+		kern->cntAbsent = mapp;
+		kern->cntUnmapped = unmapp;
+		kern->size = (temp->end - temp->start)/(1024*1024);		
+		list_add_tail(&(kern->list), &(vmKernel.list));
 	}
 	return 0;
 }

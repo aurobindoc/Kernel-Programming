@@ -75,13 +75,12 @@ int __init initialise(void)
 			pOffset = virtAddr & ~PAGE_MASK;
 	}
 	paPagewalk = ((phys_addr_t)(phyAddr | pOffset ));
-	printk(KERN_INFO "LEVEL = %d.\n",level);
     printk(KERN_INFO "Virtual Address : %lx\n", virtAddr);
 	printk(KERN_INFO "Physical Address (using Macro)  : %lx\n", paMacro);
 	printk(KERN_INFO "Physical Address (using Pagewalk) : %lx\n", paPagewalk);
 
 	if(paMacro == paPagewalk)
-	printk(KERN_INFO "Succes!! Both the physical addresses are same.\n");
+	printk(KERN_INFO "Success!! Both the physical addresses are same.\n");
 	else
 	printk(KERN_INFO "Failure!! Both the physical addresses are different.\n");
 
