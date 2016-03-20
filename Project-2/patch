@@ -1,0 +1,96 @@
+diff -uNr /home/aurobindo/Kernel_a/linux-4.3.3/drivers/Kconfig /usr/src/linux-4.3.3/drivers/Kconfig
+--- /home/aurobindo/Kernel_a/linux-4.3.3/drivers/Kconfig	2015-12-15 11:11:43.000000000 +0530
++++ /usr/src/linux-4.3.3/drivers/Kconfig	2016-03-16 18:43:20.396450848 +0530
+@@ -188,4 +188,6 @@
+ 
+ source "drivers/nvmem/Kconfig"
+ 
++source "drivers/myCharDriver/Kconfig"
+ endmenu
++
+diff -uNr /home/aurobindo/Kernel_a/linux-4.3.3/drivers/Makefile /usr/src/linux-4.3.3/drivers/Makefile
+--- /home/aurobindo/Kernel_a/linux-4.3.3/drivers/Makefile	2015-12-15 11:11:43.000000000 +0530
++++ /usr/src/linux-4.3.3/drivers/Makefile	2016-03-16 18:42:28.112453179 +0530
+@@ -167,3 +167,4 @@
+ obj-$(CONFIG_CORESIGHT)		+= hwtracing/coresight/
+ obj-$(CONFIG_ANDROID)		+= android/
+ obj-$(CONFIG_NVMEM)		+= nvmem/
++obj-$(CONFIG_MY_DRIVER)   += myCharDriver/
+diff -uNr /home/aurobindo/Kernel_a/linux-4.3.3/drivers/myCharDriver/Kconfig /usr/src/linux-4.3.3/drivers/myCharDriver/Kconfig
+--- /home/aurobindo/Kernel_a/linux-4.3.3/drivers/myCharDriver/Kconfig	1970-01-01 05:30:00.000000000 +0530
++++ /usr/src/linux-4.3.3/drivers/myCharDriver/Kconfig	2016-03-16 18:40:54.108457370 +0530
+@@ -0,0 +1,2 @@
++config MY_DRIVER
++tristate "Aurobindo Character Driver"
+diff -uNr /home/aurobindo/Kernel_a/linux-4.3.3/drivers/myCharDriver/Makefile /usr/src/linux-4.3.3/drivers/myCharDriver/Makefile
+--- /home/aurobindo/Kernel_a/linux-4.3.3/drivers/myCharDriver/Makefile	1970-01-01 05:30:00.000000000 +0530
++++ /usr/src/linux-4.3.3/drivers/myCharDriver/Makefile	2016-03-16 18:38:20.720464209 +0530
+@@ -0,0 +1 @@
++obj-$(CONFIG_MY_DRIVER) += myCharDriver.o
+diff -uNr /home/aurobindo/Kernel_a/linux-4.3.3/drivers/myCharDriver/myCharDriver.c /usr/src/linux-4.3.3/drivers/myCharDriver/myCharDriver.c
+--- /home/aurobindo/Kernel_a/linux-4.3.3/drivers/myCharDriver/myCharDriver.c	1970-01-01 05:30:00.000000000 +0530
++++ /usr/src/linux-4.3.3/drivers/myCharDriver/myCharDriver.c	2016-03-16 18:44:28.400447816 +0530
+@@ -0,0 +1,63 @@
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/fs.h>
++#include <linux/cdev.h>
++#include <asm/uaccess.h>
++#include <linux/slab.h>
++#include <linux/mm.h>
++
++MODULE_LICENSE("GPL");
++MODULE_AUTHOR("Aurobindo Mondal");
++
++#ifndef VM_RESERVED
++#define  VM_RESERVED   (VM_DONTEXPAND | VM_DONTDUMP)
++#endif
++
++char *buffer;
++
++static int mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)	{
++    struct page *page;
++	page = virt_to_page(buffer);
++    get_page(page);
++    vmf->page = page;
++    return 0;
++}
++
++struct vm_operations_struct mmap_vm_ops = {
++    .fault =    mmap_fault,    
++};
++
++static int myMmap(struct file *myFile, struct vm_area_struct *myVma)    { 
++	myVma->vm_ops = &mmap_vm_ops;
++    myVma->vm_flags |= VM_RESERVED;    
++    return 0;
++}
++
++static const struct file_operations myFileOps = {
++	.owner      = THIS_MODULE,
++    .mmap       = myMmap,
++};
++		
++
++int __init initialise(void)	{
++	if(register_chrdev(279, "myCharDev", &myFileOps)>=0)    
++        printk(KERN_INFO "Device successfully registered!!!\n");
++    else {
++        printk(KERN_INFO "Device registration failed!!!\n");
++		return 0;        
++	}
++    buffer = get_zeroed_page(GFP_KERNEL);
++    memcpy((char *)buffer, "Hi, I am Kernel!", 16);
++	printk("%s\n", buffer);
++	return 0;
++}
++
++void __exit terminate(void)	{
++	int i;
++	printk("%s\n", buffer);
++    unregister_chrdev(279, "myCharDev");
++    printk(KERN_INFO "Removed device!!!\nGood Bye!!!!\n");
++}
++
++module_init(initialise);
++module_exit(terminate);

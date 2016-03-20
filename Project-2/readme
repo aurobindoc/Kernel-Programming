@@ -1,0 +1,11 @@
+sudo mknod myCharDev c 279 0
+
+to insert module :
+	sudo insmod part2-charDevDrvr.ko
+
+to test :
+	sudo ./part2-testerProgram
+
+to remove module :
+
+	sudo rmmod  part2-charDevDrvr
