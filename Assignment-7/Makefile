@@ -1,3 +1,4 @@
+obj-m += pfs.o
 obj-m += procfs.o
 obj-m += procfsMod.o
 all:

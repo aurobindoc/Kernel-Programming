@@ -11,7 +11,7 @@
 
 
 int arr_argc = 0;
-int myintArray[3] = {1,2,3};
+int myintArray[3];
 module_param_array(myintArray, int, &arr_argc, 0000);
 MODULE_PARM_DESC(myintArray, "An integer Array");
 
