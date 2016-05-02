@@ -12,10 +12,6 @@ MODULE_DESCRIPTION("Multilevel Priority Queue IO scheduler");
 
 #define numQ 3
 
-static struct kobject *mpqObj;
-static int q1=-1;
-static int q2=-1;
-
 struct mpq_data	{
 	struct list_head queue[numQ];
 };
@@ -29,15 +25,12 @@ static void mpq_merged_requests(struct request_queue *q, struct request *rq, str
 static int mpq_dispatch(struct request_queue *q, int force)	{
 	struct mpq_data *nd = q->elevator->elevator_data;
 	struct request *rq;
-	unsigned long endTime, serveTime;
 	
 	rq = list_first_entry_or_null(&nd->queue[0], struct request, queuelist);
 	if(rq)	{
 		list_del_init(&rq->queuelist);
 		elv_dispatch_sort(q, rq);
-		endTime = jiffies;
-		serveTime = rq->fifo_time - endTime;
-		printk(KERN_ALERT "Dispatched from Queue 1 with ProcessID : %d : Time required %lu \n", q1, serveTime);
+		printk(KERN_ALERT "Dispatched from Queue 1\n");
 		return 1;
 	}
 	else {
@@ -45,9 +38,7 @@ static int mpq_dispatch(struct request_queue *q, int force)	{
 		if(rq)	{
 			list_del_init(&rq->queuelist);
 			elv_dispatch_sort(q, rq);
-			endTime = jiffies;
-			serveTime = rq->fifo_time - endTime;
-            printk(KERN_ALERT "Dispatched from Queue 2 with ProcessID : %d : Time required %lu \n", q2, serveTime);
+			printk(KERN_ALERT "Dispatched from Queue 2\n");
 			return 1;
 		}
 		else {
@@ -55,9 +46,7 @@ static int mpq_dispatch(struct request_queue *q, int force)	{
 			if(rq)	{
 				list_del_init(&rq->queuelist);
 				elv_dispatch_sort(q, rq);
-				endTime = jiffies;
-				serveTime = rq->fifo_time - endTime;
-                printk(KERN_ALERT "Dispatched from Queue 3 for general process: Time required %lu \n", serveTime);
+				printk(KERN_ALERT "Dispatched from Queue 3\n");
 				return 1;
 			}
 		}
@@ -69,13 +58,12 @@ static int mpq_dispatch(struct request_queue *q, int force)	{
 static void mpq_add_request(struct request_queue *q, struct request *rq)
 {
 	struct task_struct *task = current;
-	rq->fifo_time = jiffies;
 	struct mpq_data *nd = q->elevator->elevator_data;
 	
-	if(task->pid == q1)	{
+	if(task->pid == -4)	{
 		list_add_tail(&rq->queuelist, &nd->queue[0]);
 	}
-	else if(task->pid == q2)	{
+	else if(task->pid == -5)	{
 		list_add_tail(&rq->queuelist, &nd->queue[1]);
 	}
 	else {
@@ -159,6 +147,11 @@ static struct elevator_type elevator_mpq = {
  * The 2 processid having the priority of 1 and 2 are writen in 2 files
  * q1 and q2 in /sys/kernel/multiQ. 
  */
+ 
+static struct kobject *mpqObj;
+static int q1=-1;
+static int q2=-1;
+ 
  
 // Queue 1
 

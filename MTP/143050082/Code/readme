@@ -1,0 +1,26 @@
+To run the IO scheduler :
+	
+	$ make
+	$ sudo insmod multiQ-iosched.ko
+	$ echo mpq > /sys/block/sda/queue/scheduler
+	
+To run the read program and test the IO scheduler :
+	
+	$ gcc -o reader read.c
+	$ ./reader
+	
+	Get the pid of reader using 
+		$ ps aux | grep reader
+	
+	Add pid to 1st queue to see whether the IO scheduler selects the 1st Queue
+		$ echo 'PID' > /sys/kernel/multiQ/q1
+		
+To remove IO scheduler
+
+	Change to Old IO scheduler
+		$ echo cfq > /sys/block/sda/queue/scheduler
+	rmmod
+		$ sudo rmmod multiQ-iosched
+		
+		
+See the logs in dmesg
